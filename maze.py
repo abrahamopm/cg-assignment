@@ -102,7 +102,47 @@ class Maze:
             self.solve_stack.append(self.solve_current)
             self.visited_solve.add(self.solve_current)
 
-        def solve_step(self): pass
+    def solve_step(self):
+        """Perform one step of the backtracking solver."""
+        if self.solve_done or not self.started_solving:
+            return
+
+        r, c = self.solve_current
+        if (r, c) == self.solve_target:
+            self.solve_done = True
+            return
+
+        # Possible moves (no walls and not visited)
+        moves = []
+        # North
+        if r < self.R and self.north_walls[r][c] == 0 and (r+1, c) not in self.visited_solve and (r+1, c) not in self.dead_ends:
+            moves.append((r + 1, c))
+        # South
+        if r > 1 and self.north_walls[r - 1][c] == 0 and (r-1, c) not in self.visited_solve and (r-1, c) not in self.dead_ends:
+            moves.append((r - 1, c))
+        # East
+        if c < self.C and self.east_walls[r][c] == 0 and (r, c+1) not in self.visited_solve and (r, c+1) not in self.dead_ends:
+            moves.append((r, c + 1))
+        # West
+        if c > 1 and self.east_walls[r][c - 1] == 0 and (r, c-1) not in self.visited_solve and (r, c-1) not in self.dead_ends:
+            moves.append((r, c - 1))
+
+        if moves:
+            # Choose a random move
+            next_move = random.choice(moves)
+            self.solve_stack.append(next_move)
+            self.visited_solve.add(next_move)
+            self.solve_current = next_move
+        elif self.solve_stack:
+            # Backtrack: mark as dead end
+            self.dead_ends.add(self.solve_current)
+            self.solve_stack.pop()
+            if self.solve_stack:
+                self.solve_current = self.solve_stack[-1]
+        else:
+            # No path? (Shouldn't happen in a proper maze)
+            self.solve_done = True
+
     def render(self, display_width, display_height):
         """Render the maze using OpenGL."""
         scale_x = display_width / (self.C + 2)

@@ -7,29 +7,30 @@ from OpenGL.GLU import *
 
 class Maze:
     """
-    A class to represent and manage the generation and solving of a rectangular maze.
-    Uses the data structure: northWall[R][C] and eastWall[R][C].
+    A class to manage a rectangular maze.
+    Data Structure:
+    - north_walls[r][c]: Wall above cell (r, c). north_walls[0] is bottom boundary.
+    - east_walls[r][c]: Wall to the right of cell (r, c). east_walls[r][0] is left boundary.
     """
     def __init__(self, rows, cols):
         self.R = rows
         self.C = cols
         
-        # northWall[i][j]: top wall of cell (i, j). 
-        # northWall[0][j] is the bottom edge of the maze.
+        # Initialize all walls as intact (1)
+        # Dimensions are (R+1) x (C+1) to handle boundaries correctly
         self.north_walls = [[1 for _ in range(cols + 1)] for _ in range(rows + 1)]
-        
-        # eastWall[i][j]: right wall of cell (i, j).
-        # eastWall[i][0] is the left edge of the maze.
         self.east_walls = [[1 for _ in range(cols + 1)] for _ in range(rows + 1)]
         
-        # For generation
+        # Generation State
         self.visited_gen = [[False for _ in range(cols + 1)] for _ in range(rows + 1)]
         self.gen_stack = []
-        self.gen_current = (random.randint(1, rows), random.randint(1, cols))
-        self.visited_gen[self.gen_current[0]][self.gen_current[1]] = True
+        # Start at a random cell within bounds [1, R] and [1, C]
+        start_r, start_c = random.randint(1, rows), random.randint(1, cols)
+        self.gen_current = (start_r, start_c)
+        self.visited_gen[start_r][start_c] = True
         self.gen_done = False
         
-        # For solving
+        # Solving State
         self.solve_stack = []
         self.solve_current = None
         self.solve_target = None
@@ -37,210 +38,205 @@ class Maze:
         self.dead_ends = set()
         self.solve_done = False
         self.started_solving = False
+        self.status = "Generating..."
 
     def get_unvisited_neighbors(self, r, c):
+        """Find adjacent cells that haven't been visited during generation."""
         neighbors = []
-        # North
-        if r < self.R and not self.visited_gen[r + 1][c]:
-            neighbors.append(('N', r + 1, c))
-        # South
-        if r > 1 and not self.visited_gen[r - 1][c]:
-            neighbors.append(('S', r - 1, c))
-        # East
-        if c < self.C and not self.visited_gen[r][c + 1]:
-            neighbors.append(('E', r, c + 1))
-        # West
-        if c > 1 and not self.visited_gen[r][c - 1]:
-            neighbors.append(('W', r, c - 1))
+        if r < self.R and not self.visited_gen[r + 1][c]: neighbors.append(('N', r + 1, c))
+        if r > 1 and not self.visited_gen[r - 1][c]: neighbors.append(('S', r - 1, c))
+        if c < self.C and not self.visited_gen[r][c + 1]: neighbors.append(('E', r, c + 1))
+        if c > 1 and not self.visited_gen[r][c - 1]: neighbors.append(('W', r, c - 1))
         return neighbors
 
     def generate_step(self):
-        """Perform one step of the DFS maze generation."""
-        if self.gen_done:
-            return
+        """One step of DFS generation."""
+        if self.gen_done: return
 
         r, c = self.gen_current
         neighbors = self.get_unvisited_neighbors(r, c)
 
         if neighbors:
-            # Choose one randomly
             direction, nr, nc = random.choice(neighbors)
-            
-            # Eat the wall
-            if direction == 'N':
-                self.north_walls[r][c] = 0
-            elif direction == 'S':
-                self.north_walls[r - 1][c] = 0
-            elif direction == 'E':
-                self.east_walls[r][c] = 0
-            elif direction == 'W':
-                self.east_walls[r][c - 1] = 0
+            # Remove the wall between current and neighbor
+            if direction == 'N': self.north_walls[r][c] = 0
+            elif direction == 'S': self.north_walls[r - 1][c] = 0
+            elif direction == 'E': self.east_walls[r][c] = 0
+            elif direction == 'W': self.east_walls[r][c - 1] = 0
 
-            # 1 in 20 chance to eat an extra wall (Bonus: Cycles)
-            if random.random() < 0.05:
-                extra_neighbors = [('N', r, c), ('S', r-1, c), ('E', r, c), ('W', r, c-1)]
-                edir, er, ec = random.choice(extra_neighbors)
-                if edir in ['N', 'S'] and 0 < er < self.R and 0 < ec <= self.C:
-                    self.north_walls[er][ec] = 0
-                elif edir in ['E', 'W'] and 0 < er <= self.R and 0 < ec < self.C:
-                    self.east_walls[er][ec] = 0
+            # Optional: Bonus cycle generation (1 in 50 for stability)
+            if random.random() < 0.02:
+                # Pick a random internal wall to remove
+                er, ec = random.randint(1, self.R), random.randint(1, self.C)
+                if random.choice([True, False]):
+                    if er < self.R: self.north_walls[er][ec] = 0 # Not top boundary
+                else:
+                    if ec < self.C: self.east_walls[er][ec] = 0 # Not right boundary
 
-            # Push current to stack and move
             self.gen_stack.append((r, c))
             self.gen_current = (nr, nc)
             self.visited_gen[nr][nc] = True
         elif self.gen_stack:
-            # Backtrack
             self.gen_current = self.gen_stack.pop()
         else:
+            # Generation complete: setup solver
             self.gen_done = True
-            # Open start and end
-            self.solve_current = (random.randint(1, self.R), 1) # Start on left
-            self.east_walls[self.solve_current[0]][0] = 0 # Open left wall
-            self.solve_target = (random.randint(1, self.R), self.C) # End on right
-            self.east_walls[self.solve_target[0]][self.C] = 0 # Open right wall
-            self.solve_stack.append(self.solve_current)
-            self.visited_solve.add(self.solve_current)
+            self.status = "Finished! Press SPACE to solve."
+            self.init_solver()
+
+    def init_solver(self):
+        """Pick start/end and initialize solver variables."""
+        # Start on left edge (col 1), End on right edge (col C)
+        start_r = random.randint(1, self.R)
+        end_r = random.randint(1, self.R)
+        
+        self.solve_current = (start_r, 1)
+        self.solve_target = (end_r, self.C)
+        
+        # Open the entrance and exit walls
+        self.east_walls[start_r][0] = 0
+        self.east_walls[end_r][self.C] = 0
+        
+        self.solve_stack = [self.solve_current]
+        self.visited_solve = {self.solve_current}
 
     def solve_step(self):
-        """Perform one step of the backtracking solver."""
-        if self.solve_done or not self.started_solving:
-            return
+        """One step of backtracking solver."""
+        if self.solve_done or not self.started_solving: return
 
         r, c = self.solve_current
         if (r, c) == self.solve_target:
             self.solve_done = True
+            self.status = "Solved!"
             return
 
-        # Possible moves (no walls and not visited)
+        # Find valid next moves (no wall and not visited/dead-end)
         moves = []
         # North
         if r < self.R and self.north_walls[r][c] == 0 and (r+1, c) not in self.visited_solve and (r+1, c) not in self.dead_ends:
-            moves.append((r + 1, c))
+            moves.append((r+1, c))
         # South
-        if r > 1 and self.north_walls[r - 1][c] == 0 and (r-1, c) not in self.visited_solve and (r-1, c) not in self.dead_ends:
-            moves.append((r - 1, c))
+        if r > 1 and self.north_walls[r-1][c] == 0 and (r-1, c) not in self.visited_solve and (r-1, c) not in self.dead_ends:
+            moves.append((r-1, c))
         # East
         if c < self.C and self.east_walls[r][c] == 0 and (r, c+1) not in self.visited_solve and (r, c+1) not in self.dead_ends:
-            moves.append((r, c + 1))
+            moves.append((r, c+1))
         # West
-        if c > 1 and self.east_walls[r][c - 1] == 0 and (r, c-1) not in self.visited_solve and (r, c-1) not in self.dead_ends:
-            moves.append((r, c - 1))
+        if c > 1 and self.east_walls[r][c-1] == 0 and (r, c-1) not in self.visited_solve and (r, c-1) not in self.dead_ends:
+            moves.append((r, c-1))
 
         if moves:
-            # Choose a random move
-            next_move = random.choice(moves)
-            self.solve_stack.append(next_move)
-            self.visited_solve.add(next_move)
-            self.solve_current = next_move
+            next_cell = random.choice(moves)
+            self.solve_stack.append(next_cell)
+            self.visited_solve.add(next_cell)
+            self.solve_current = next_cell
         elif self.solve_stack:
-            # Backtrack: mark as dead end
+            # Dead end: backtrack
             self.dead_ends.add(self.solve_current)
             self.solve_stack.pop()
             if self.solve_stack:
                 self.solve_current = self.solve_stack[-1]
         else:
-            # No path? (Shouldn't happen in a proper maze)
             self.solve_done = True
+            self.status = "No path found!"
 
-    def render(self, display_width, display_height):
-        """Render the maze using OpenGL."""
-        scale_x = display_width / (self.C + 2)
-        scale_y = display_height / (self.R + 2)
-        offset_x = scale_x
-        offset_y = scale_y
+    def render(self, width, height):
+        """Render walls and dots."""
+        sx = width / (self.C + 2)
+        sy = height / (self.R + 2)
+        ox, oy = sx, sy
 
-        # Draw Grid/Walls
-        glColor3f(0.0, 0.0, 0.0) # Black walls
+        # Draw Walls
+        glColor3f(0, 0, 0)
         glLineWidth(2.0)
         glBegin(GL_LINES)
-        
-        # Draw North Walls
+        # North walls
         for r in range(self.R + 1):
             for c in range(1, self.C + 1):
                 if self.north_walls[r][c]:
-                    glVertex2f(offset_x + (c - 1) * scale_x, offset_y + r * scale_y)
-                    glVertex2f(offset_x + c * scale_x, offset_y + r * scale_y)
-        
-        # Draw East Walls
+                    glVertex2f(ox + (c-1)*sx, oy + r*sy)
+                    glVertex2f(ox + c*sx, oy + r*sy)
+        # East walls
         for r in range(1, self.R + 1):
             for c in range(self.C + 1):
                 if self.east_walls[r][c]:
-                    glVertex2f(offset_x + c * scale_x, offset_y + (r - 1) * scale_y)
-                    glVertex2f(offset_x + c * scale_x, offset_y + r * scale_y)
+                    glVertex2f(ox + c*sx, oy + (r-1)*sy)
+                    glVertex2f(ox + c*sx, oy + r*sy)
         glEnd()
 
-        # Draw Generation Cursor
+        # Dots
+        glPointSize(8.0)
+        glBegin(GL_POINTS)
         if not self.gen_done:
-            r, c = self.gen_current
-            glColor3f(0.0, 1.0, 0.0) # Green cursor for generator
-            glPointSize(10.0)
-            glBegin(GL_POINTS)
-            glVertex2f(offset_x + (c - 0.5) * scale_x, offset_y + (r - 0.5) * scale_y)
-            glEnd()
-
-        # Draw Solution Path (Red Dot)
+            glColor3f(0, 1, 0) # Green for generation cursor
+            glVertex2f(ox + (self.gen_current[1]-0.5)*sx, oy + (self.gen_current[0]-0.5)*sy)
+        
         if self.started_solving:
-            # Draw dead ends (Blue dots)
-            glColor3f(0.0, 0.0, 1.0)
-            glPointSize(5.0)
-            glBegin(GL_POINTS)
+            # Dead ends in Blue
+            glColor3f(0, 0, 1)
             for dr, dc in self.dead_ends:
-                glVertex2f(offset_x + (dc - 0.5) * scale_x, offset_y + (dr - 0.5) * scale_y)
-            glEnd()
-
-            # Draw current path
-            glColor3f(1.0, 0.0, 0.0)
-            glPointSize(8.0)
-            glBegin(GL_POINTS)
+                glVertex2f(ox + (dc-0.5)*sx, oy + (dr-0.5)*sy)
+            # Current path in Red
+            glColor3f(1, 0, 0)
             for sr, sc in self.solve_stack:
-                glVertex2f(offset_x + (sc - 0.5) * scale_x, offset_y + (sr - 0.5) * scale_y)
-            glEnd()
+                glVertex2f(ox + (sc-0.5)*sx, oy + (sr-0.5)*sy)
+        glEnd()
 
 def main():
+    # Configuration
+    ROWS = 20
+    COLS = 20
+    CELL_SIZE = 30
+    PADDING = 2 # 2 cells worth of padding
+    
+    # Calculate window size based on 30px per square plus padding
+    window_width = (COLS + PADDING) * CELL_SIZE
+    window_height = (ROWS + PADDING) * CELL_SIZE
+    
     pygame.init()
-    display_size = (800, 600)
-    screen = pygame.display.set_mode(display_size, DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Maze Generator & Solver")
-
-    # OpenGL Setup
-    glClearColor(1.0, 1.0, 1.0, 1.0) # White background
+    d_size = (window_width, window_height)
+    pygame.display.set_mode(d_size, DOUBLEBUF | OPENGL)
+    
+    glClearColor(1, 1, 1, 1)
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluOrtho2D(0, display_size[0], 0, display_size[1])
-    
-    maze = Maze(20, 30) # R rows, C columns
+    gluOrtho2D(0, d_size[0], 0, d_size[1])
+
+    maze = Maze(ROWS, COLS)
     clock = pygame.time.Clock()
     running = True
 
     while running:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE and maze.gen_done:
+            if event.type == QUIT: running = False
+            if event.type == KEYDOWN:
+                if event.key == K_SPACE and maze.gen_done:
                     maze.started_solving = True
-                if event.key == pygame.K_r: # Reset
-                    maze = Maze(20, 30)
+                    maze.status = "Solving..."
+                if event.key == K_r:
+                    maze = Maze(ROWS, COLS)
 
-        # Logic
         if not maze.gen_done:
             maze.generate_step()
         elif maze.started_solving and not maze.solve_done:
+            # Automatic stepping for solver
             maze.solve_step()
 
-        # Rendering
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        maze.render(display_size[0], display_size[1])
+        # Update window title with status
+        pygame.display.set_caption(f"Maze - {maze.status}")
+        
+        glClear(GL_COLOR_BUFFER_BIT)
+        maze.render(d_size[0], d_size[1])
         pygame.display.flip()
         
-        # Slow down for visualization
+        # Adjust speed: Generation is fast, Solving is slightly slower for visibility
         if not maze.gen_done:
-            clock.tick(120) # Speed of generation
+            clock.tick(240) 
         else:
-            clock.tick(30) # Speed of solving
+            clock.tick(60) 
 
     pygame.quit()
 
 if __name__ == "__main__":
     main()
+

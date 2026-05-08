@@ -208,13 +208,21 @@ def main():
         if not maze.gen_done:
             maze.generate_step()
         elif maze.started_solving and not maze.solve_done:
+            # Automatic stepping for solver
             maze.solve_step()
 
-        pygame.display.set_caption(f"Maze Generator - {maze.status}")
+        # Update window title with status
+        pygame.display.set_caption(f"Maze - {maze.status}")
+        
         glClear(GL_COLOR_BUFFER_BIT)
         maze.render(d_size[0], d_size[1])
         pygame.display.flip()
-        clock.tick(60 if not maze.gen_done else 30)
+        
+        # Adjust speed: Generation is fast, Solving is slightly slower for visibility
+        if not maze.gen_done:
+            clock.tick(240) 
+        else:
+            clock.tick(60) 
 
     pygame.quit()
 

@@ -7,20 +7,19 @@
 ---
 
 ## Project Overview
-[cite_start]This project implements the generation and traversal of a **proper maze**—a structure where every cell is connected to every other cell by a unique path[cite: 9, 10]. [cite_start]The application uses specific data structures to manage wall integrity and dynamic movement[cite: 11, 12].
+This project implements the generation and traversal of a **proper maze**—a structure where every cell is connected to every other cell by a unique path.The application uses specific data structures to manage wall integrity and dynamic movement.
 
 ## Core Features
 
 ### 1. Maze Generation
-* [cite_start]**Logic:** Employs a stack-based **Depth-First Search (DFS)** algorithm[cite: 48].
-* [cite_start]**Process:** An invisible "mouse" eats through walls of a solid grid to connect adjacent unvisited cells[cite: 20, 24].
-* [cite_start]**Backtracking:** If the mouse hits a dead end, it pops a previously saved candidate cell from the stack to continue until all cells are visited[cite: 26, 27].
+* **Logic:** Employs a stack-based **Depth-First Search (DFS)** algorithm.
+* **Process:** An invisible "mouse" eats through walls of a solid grid to connect adjacent unvisited cells.
+* **Backtracking:** If the mouse hits a dead end, it pops a previously saved candidate cell from the stack to continue until all cells are visited.
 
 ### 2. Maze Solver
-* [cite_start]**Algorithm:** Uses a **backtracking algorithm** to find the path from the starting edge to the ending edge[cite: 32, 33].
-* [cite_start]**Visualization:** * **Red Dot:** Represents the current active path of the mouse[cite: 36].
-    * [cite_start]**Blue Dot:** Marks dead ends that have been explored and discarded[cite: 37].
-
+* **Algorithm:** Uses a **backtracking algorithm** to find the path from the starting edge to the ending edge.
+* **Visualization:** * **Red Dot:** Represents the current active path of the mouse.
+    * **Blue Dot:** Marks dead ends that have been explored and discarded.
 ## Demonstration
 The video demonstration showing the dynamic "eating" process and the functional solver is available below:
 

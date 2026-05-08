@@ -183,15 +183,26 @@ class Maze:
         glEnd()
 
 def main():
+    # Configuration
+    ROWS = 20
+    COLS = 20
+    CELL_SIZE = 30
+    PADDING = 2 # 2 cells worth of padding
+    
+    # Calculate window size based on 30px per square plus padding
+    window_width = (COLS + PADDING) * CELL_SIZE
+    window_height = (ROWS + PADDING) * CELL_SIZE
+    
     pygame.init()
-    d_size = (800, 600)
+    d_size = (window_width, window_height)
     pygame.display.set_mode(d_size, DOUBLEBUF | OPENGL)
     
     glClearColor(1, 1, 1, 1)
     glMatrixMode(GL_PROJECTION)
+    glLoadIdentity()
     gluOrtho2D(0, d_size[0], 0, d_size[1])
 
-    maze = Maze(20, 30)
+    maze = Maze(ROWS, COLS)
     clock = pygame.time.Clock()
     running = True
 
@@ -203,7 +214,7 @@ def main():
                     maze.started_solving = True
                     maze.status = "Solving..."
                 if event.key == K_r:
-                    maze = Maze(20, 30)
+                    maze = Maze(ROWS, COLS)
 
         if not maze.gen_done:
             maze.generate_step()
